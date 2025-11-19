@@ -4,6 +4,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { searchMovies } from "../../lib/tmdb";
 
+// 👉 importa los assets desde src/assets
+import logoMain from "../../assets/filmvault-logo.png";
+import logoRed from "../../assets/filmvault-logo-red.png";
+import logoutIcon from "../../assets/logout-icon.png";
+
 export default function Header() {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -12,11 +17,8 @@ export default function Header() {
   const isLanding = location.pathname === "/";
   const isLogin = location.pathname === "/login";
 
-  // 👇 aquí elegimos el logo según la sección
-  const logoSrc =
-    isLanding || isLogin
-      ? "/filmvault-logo.png"       // landing + login
-      : "/filmvault-logo-red.png";  // dentro de la app
+  // 👇 Elegimos el logo según la sección (ahora usando los imports)
+  const logoSrc = isLanding || isLogin ? logoMain : logoRed;
 
   const [hidden, setHidden] = useState(false);
 
@@ -192,7 +194,7 @@ export default function Header() {
                   className="fv-header__logout"
                 >
                   <img
-                    src="/logout-icon.png"
+                    src={logoutIcon}
                     className="w-5 h-5"
                     alt="logout"
                   />

@@ -240,3 +240,16 @@ export const getTopRatedSeries = async (): Promise<TmdbSeries[]> => {
   );
   return data.results;
 };
+// src/lib/tmdb.ts
+// ...lo que ya tienes arriba
+
+export const getTvShow = async (id: number | string): Promise<any> => {
+  const { data } = await api.get(`/tv/${id}`, {
+    params: {
+      append_to_response: "credits,images,videos",
+      language: "es-ES",
+      include_image_language: "es,en,null",
+    },
+  });
+  return data;
+};

@@ -1,15 +1,16 @@
 // src/components/organisms/Shelf.tsx
-import { ShelfCard } from "../molecules/ShelfCard";
-import type { ShelfCardMovie } from "../molecules/ShelfCard";
+import { Link } from "react-router-dom";
+import { posterUrl, TmdbMovie, TmdbSeries } from "../../lib/tmdb";
+
+type Item = TmdbMovie | TmdbSeries;
 
 interface ShelfProps {
   title: string;
-  items: ShelfCardMovie[];
+  items: Item[];
   watchlistIds: number[];
-  onToggleWatchlist: (id: number) => void;
-  userCanEdit: boolean;
-  kind?: "movie" | "tv";
-  linkBasePath?: string;
+  onToggleWatchlist?: (id: number) => void;
+  userCanEdit?: boolean;
+  kind?: "movie" | "tv"; // 👈 ya lo tenías
 }
 
 export function Shelf({
@@ -17,28 +18,61 @@ export function Shelf({
   items,
   watchlistIds,
   onToggleWatchlist,
-  userCanEdit,
+  userCanEdit = false,
   kind = "movie",
-  linkBasePath,
 }: ShelfProps) {
-  if (!items || !items.length) return null;
-
   return (
     <section className="shelf">
       <h2 className="shelf__title">{title}</h2>
 
       <div className="shelf__scroller">
-        {items.slice(0, 20).map((m) => (
-          <ShelfCard
-            key={m.id}
-            movie={m}
-            inWatchlist={watchlistIds.includes(m.id)}
-            onToggleWatchlist={() => onToggleWatchlist(m.id)}
-            userCanEdit={userCanEdit}
-            kind={kind}
-            linkBasePath={linkBasePath}
-          />
-        ))}
+        {items.map((item: any) => {
+          const inWatchlist = watchlistIds.includes(item.id);
+          const href = kind === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`; // 👈 AQUÍ LA CLAVE
+
+          const titleText = item.title || item.name;
+          const year =
+            (item.release_date || item.first_air_date || "").slice(0, 4);
+
+          return (
+            <div key={item.id} className="shelf-card">
+              <Link to={href}>
+                {item.poster_path ? (
+                  <img
+                    src={posterUrl(item.poster_path, "w342")}
+                    className="shelf-card__poster"
+                  />
+                ) : (
+                  <div className="shelf-card__poster bg-gray-800" />
+                )}
+
+                <div className="shelf-card__overlay">
+                  <div className="shelf-card__title">{titleText}</div>
+                  <div className="shelf-card__meta">
+                    {year && <span>{year}</span>}
+                    {item.vote_average && (
+                      <span>⭐ {item.vote_average.toFixed(1)}</span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+
+              {/* Botón de watchlist opcional */}
+              {userCanEdit && onToggleWatchlist && (
+                <button
+                  type="button"
+                  className={
+                    "shelf-card__watch" +
+                    (inWatchlist ? " shelf-card__watch--active" : "")
+                  }
+                  onClick={() => onToggleWatchlist(item.id)}
+                >
+                  {inWatchlist ? "✓" : "+"}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );

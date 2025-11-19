@@ -3,29 +3,36 @@ import { useEffect, useState } from "react";
 import FeatureSlide from "../molecules/FeatureSlide";
 import FvJoinButton from "../atoms/FvJoinButton";
 
+// 👇 Importa las imágenes desde assets
+import slide1 from "../../assets/landing/slide1.jpg";
+import slide2 from "../../assets/landing/slide2.jpg";
+import slide3 from "../../assets/landing/slide3.jpg";
+import slide4 from "../../assets/landing/slide4.jpg";
+import slide5 from "../../assets/landing/slide5.jpg";
+
 type Slide = { img: string; caption: string };
 
 const SLIDES: Slide[] = [
   {
-    img: "/landing/slide1.jpg",
+    img: slide1,
     caption: "Califica películas con estrellas.",
   },
   {
-    img: "/landing/slide2.jpg",
+    img: slide2,
     caption: "Escribe reseñas y comparte tu opinión.",
   },
   {
-    img: "/landing/slide3.jpg",
+    img: slide3,
     caption: "Crea tu Watchlist y organiza tus pendientes.",
   },
   {
-    img: "/landing/slide4.jpg",
+    img: slide4,
     caption: "Sigue tu historial y descubre tendencias.",
   },
   {
-    img: "/landing/slide5.jpg",
+    img: slide5,
     caption: "Comparte tu pasión por el cine.",
-  }
+  },
 ];
 
 export default function LandingHero() {
@@ -42,7 +49,7 @@ export default function LandingHero() {
   }, []);
 
   return (
-<section className="fv-hero h-[100vh] flex flex-col relative bg-black">
+    <section className="fv-hero h-[100vh] flex flex-col relative bg-black">
       <div className="relative flex-1">
         {SLIDES.map((s, i) => (
           <FeatureSlide

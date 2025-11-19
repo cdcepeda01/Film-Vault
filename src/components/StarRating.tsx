@@ -1,5 +1,3 @@
-// src/components/StarRating.tsx
-import React from "react";
 
 interface StarRatingProps {
   value?: number;             // 0–max

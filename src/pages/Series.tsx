@@ -4,7 +4,6 @@ import {
   getSeriesOnTheAir,
   getPopularSeries,
   getTopRatedSeries,
-  posterUrl,
 } from "../lib/tmdb";
 import { Shelf } from "../components/organisms/Shelf";
 import { useAuth } from "../auth/useAuth";
@@ -47,8 +46,6 @@ export default function Series() {
         : [...prev, showId]
     );
   };
-
-  const hero = popular[0] || onAir[0];
 
   const chips = [
     { id: "all" as ChipId, label: "Todo" },

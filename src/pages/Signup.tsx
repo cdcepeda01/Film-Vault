@@ -1,7 +1,7 @@
 import { useAuth } from "../auth/useAuth";
 import { useNavigate, Link } from "react-router-dom";
 
-export default function Login() {
+export default function Signup() {
   const { loginGoogle } = useAuth();
   const nav = useNavigate();
 
@@ -10,7 +10,7 @@ export default function Login() {
       await loginGoogle();
       nav("/explore");
     } catch (e) {
-      alert("No se pudo iniciar sesión con Google.");
+      alert("No se pudo crear la cuenta con Google.");
       console.error(e);
     }
   };
@@ -19,10 +19,10 @@ export default function Login() {
     <div className="min-h-[100vh] flex items-center justify-center px-4 bg-gradient-to-b from-black via-[#13000b] to-[#3b0000]">
       <div className="max-w-sm w-full bg-black/90 border border-red-700 px-8 py-7 shadow-[0_20px_60px_rgba(0,0,0,0.9)] text-white rounded-none">
         <h1 className="text-2xl font-bold text-center tracking-[0.25em] text-red-500 mb-1">
-          INICIA SESIÓN
+          ÚNETE A FILMVAULT
         </h1>
         <p className="text-[11px] text-center uppercase tracking-[0.18em] text-gray-400 mb-6">
-          en FilmVault
+          crea tu perfil de cine
         </p>
 
         <button
@@ -48,20 +48,20 @@ export default function Login() {
               d="M43.611,20.083H42V20H24v8h11.303c-0.793,2.237-2.231,4.166-4.096,5.589 c0.001-0.001,0.002-0.001,0.003-0.002l5.64,5.355C36.566,39.001,44,34,44,24C44,23.326,43.862,21.681,43.611,20.083z"
             />
           </svg>
-          Entrar con Google
+          Continuar con Google
         </button>
 
         <p className="text-xs text-center mt-4 text-gray-400">
-          Usamos tu cuenta de Google para autenticarte de forma segura.
+          Usamos tu cuenta de Google para crear y gestionar tu perfil de cine.
         </p>
 
         <p className="text-xs text-center mt-4 text-gray-400">
-          ¿Aún no tienes cuenta?{" "}
+          ¿Ya tienes cuenta?{" "}
           <Link
-            to="/signup"
+            to="/login"
             className="text-red-400 hover:text-red-300 underline underline-offset-2"
           >
-            Únete a FilmVault
+            Inicia sesión
           </Link>
         </p>
       </div>

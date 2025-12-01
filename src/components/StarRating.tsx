@@ -1,8 +1,7 @@
-
 interface StarRatingProps {
-  value?: number;             // 0–max
+  value?: number;            
   onChange?: (v: number) => void;
-  max?: number;               // nº de estrellas (por defecto 5)
+  max?: number;               
 }
 
 export default function StarRating({

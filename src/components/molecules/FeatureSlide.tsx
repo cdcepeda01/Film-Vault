@@ -1,4 +1,3 @@
-// src/components/molecules/FeatureSlide.tsx
 type FeatureSlideProps = {
   imageUrl: string;
   active: boolean;
@@ -13,17 +12,14 @@ export default function FeatureSlide({ imageUrl, active, caption }: FeatureSlide
       }`}
       aria-hidden={!active}
     >
-      {/* Imagen de fondo */}
       <img
         src={imageUrl}
         alt="Escena de película"
         className="w-full h-full object-cover"
       />
 
-      {/* Capa oscura rojiza encima de la imagen */}
       <div className="fv-hero__overlay" />
 
-      {/* Texto centrado */}
       <div className="fv-hero__content">
         <div>
           <h1 className="fv-hero__title tracking-wide">El lugar donde vive tu cine.</h1>

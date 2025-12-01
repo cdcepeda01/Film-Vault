@@ -1,69 +1,157 @@
-// src/pages/Profile.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/useAuth";
+import { listenWatchlist, type WatchlistDoc } from "../lib/watchlist";
+import { ProfileAvatar } from "../components/atoms/ProfileAvatar";
+import { ProfileTabButton } from "../components/atoms/ProfileTabButton";
+import { db } from "../lib/firebase";
 import {
-  getRatings,
-  getWatchlist,
-  getAllReviews,
-} from "../lib/storage";
-import { getManyMovies, posterUrl, type TmdbMovie } from "../lib/tmdb";
-import type { Rating, Review } from "../types";
+  collection,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  type DocumentData,
+} from "firebase/firestore";
+import {
+  getManyMovies,
+  getManySeries,
+  type TmdbMovie,
+  type TmdbSeries,
+} from "../lib/tmdb";
+import type { Review as FirestoreReview } from "../lib/reviews";
+
+import {
+  ProfileSummaryTab,
+  ProfileReviewsTab,
+  ProfileStatsTab,
+} from "../components/organisms/profile";
+
 
 type ProfileTab = "summary" | "reviews" | "stats";
+
+type UserRating = {
+  movieId: number;
+  stars: number;
+  createdAt: Date;
+};
+
+type LastWatchMovie = {
+  movie: TmdbMovie;
+  addedAt: Date;
+};
+
+type Review = FirestoreReview;
 
 export default function Profile() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<ProfileTab>("summary");
 
-  const [ratings, setRatings] = useState<Rating[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [watchlistIds, setWatchlistIds] = useState<number[]>([]);
+  const [watchlistDocs, setWatchlistDocs] = useState<WatchlistDoc[]>([]);
   const [movies, setMovies] = useState<TmdbMovie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [series, setSeries] = useState<TmdbSeries[]>([]);
+  const [loadingMovies, setLoadingMovies] = useState(true);
 
-  // ===== CARGA DE DATOS =====
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setReviews([]);
+      return;
+    }
 
-    const rt = getRatings(user.id);
-    const allReviews = getAllReviews().filter(
-      (r) => r.userId === user.id
-    );
-    const wl = getWatchlist(user.id);
-
-    setRatings(rt);
-    setReviews(allReviews);
-    setWatchlistIds(wl);
-
-    const ids = Array.from(
-      new Set([
-        ...rt.map((r) => r.movieId),
-        ...allReviews.map((r) => r.movieId),
-        ...wl,
-      ])
+    const q = query(
+      collection(db, "reviews"),
+      where("userId", "==", user.id),
+      orderBy("createdAt", "desc")
     );
 
-    if (!ids.length) {
+    const unsub = onSnapshot(q, (snapshot) => {
+      const items: Review[] = snapshot.docs.map((snap) => {
+        const d = snap.data() as DocumentData;
+        return {
+          id: snap.id,
+          kind: d.kind,
+          refId: d.refId,
+          userId: d.userId,
+          userName: d.userName ?? "Usuario anónimo",
+          userPhotoUrl: d.userPhotoUrl ?? null,
+          rating: d.rating,
+          body: d.body ?? "",
+          createdAt: d.createdAt?.toDate?.() ?? new Date(),
+        };
+      });
+      setReviews(items);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setWatchlistDocs([]);
+      return;
+    }
+
+    const unsub = listenWatchlist(user.id, (items) => {
+      setWatchlistDocs(items);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
       setMovies([]);
-      setLoading(false);
+      setSeries([]);
+      setLoadingMovies(false);
+      return;
+    }
+
+    const movieIds = new Set<number>();
+    const tvIds = new Set<number>();
+
+    reviews.forEach((r) => {
+      if (r.kind === "movie") movieIds.add(r.refId);
+      else if (r.kind === "tv") tvIds.add(r.refId);
+    });
+
+    watchlistDocs.forEach((w) => {
+      if (w.kind === "movie") movieIds.add(w.refId);
+      else if (w.kind === "tv") tvIds.add(w.refId);
+    });
+
+    if (!movieIds.size && !tvIds.size) {
+      setMovies([]);
+      setSeries([]);
+      setLoadingMovies(false);
       return;
     }
 
     (async () => {
+      setLoadingMovies(true);
       try {
-        const data = await getManyMovies(ids);
-        setMovies(data);
+        const [moviesData, seriesData] = await Promise.all([
+          movieIds.size ? getManyMovies(Array.from(movieIds)) : Promise.resolve([]),
+          tvIds.size ? getManySeries(Array.from(tvIds)) : Promise.resolve([]),
+        ]);
+        setMovies(moviesData);
+        setSeries(seriesData);
       } finally {
-        setLoading(false);
+        setLoadingMovies(false);
       }
     })();
-  }, [user]);
+  }, [user, reviews, watchlistDocs]);
 
   const movieById = useMemo(() => {
     const map = new Map<number, TmdbMovie>();
     for (const m of movies) map.set(m.id, m);
     return map;
   }, [movies]);
+
+  const tvById = useMemo(() => {
+    const map = new Map<number, TmdbSeries>();
+    for (const s of series) map.set(s.id, s);
+    return map;
+  }, [series]);
 
   if (!user) {
     return (
@@ -72,9 +160,8 @@ export default function Profile() {
       </div>
     );
   }
-  // justo después del if (!user) return ...;
 
-  const uAny = user as any; // atajo para no repetir
+  const uAny = user as any;
   const rawName: string =
     (uAny.name as string | undefined) ??
     (uAny.username as string | undefined) ??
@@ -82,12 +169,24 @@ export default function Profile() {
     "usuario";
 
   const firstLetter = rawName.charAt(0).toUpperCase();
+  const photoUrl: string | null =
+    (uAny.photoURL as string | undefined) ?? null;
 
+  const ratings: UserRating[] = useMemo(
+    () =>
+      reviews
+        .filter((r) => r.kind === "movie")
+        .map((r) => ({
+          movieId: r.refId,
+          stars: r.rating,
+          createdAt: r.createdAt,
+        })),
+    [reviews]
+  );
 
-  /* ====== Estadísticas básicas ====== */
   const totalMoviesRated = ratings.length;
   const totalReviews = reviews.length;
-  const totalWatchlist = watchlistIds.length;
+  const totalWatchlist = watchlistDocs.length;
 
   const avgRating =
     ratings.length > 0
@@ -96,20 +195,31 @@ export default function Profile() {
         ).toFixed(1)
       : "—";
 
-  // top mejores puntuaciones del usuario (para carrusel)
   const topRated = [...ratings]
     .sort((a, b) => b.stars - a.stars)
-    .slice(0, 7);
+    .slice(0, 5);
 
   const recentReviews = [...reviews]
     .sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
     .slice(0, 5);
 
-  // ===== Estadísticas por género (corrigiendo el error de mv.genres) =====
+  const lastWatchMovie: LastWatchMovie | null = useMemo(() => {
+    const movieEntries = watchlistDocs.filter((w) => w.kind === "movie");
+    if (!movieEntries.length) return null;
+
+    const sorted = [...movieEntries].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+    const latest = sorted[0];
+    const mv = movieById.get(latest.refId);
+    if (!mv) return null;
+
+    return { movie: mv, addedAt: latest.createdAt };
+  }, [watchlistDocs, movieById]);
+
   const genreCount: Record<string, number> = {};
   for (const r of ratings) {
     const mv = movieById.get(r.movieId);
@@ -131,9 +241,7 @@ export default function Profile() {
       {/* ===== CABECERA PERFIL ===== */}
       <header className="profile__header flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-red-700 flex items-center justify-center text-lg font-bold">
-            {firstLetter}
-          </div>
+          <ProfileAvatar photoUrl={photoUrl} letter={firstLetter} />
           <div>
             <h1 className="text-2xl font-semibold">@{rawName}</h1>
             <p className="text-sm text-gray-400">
@@ -150,81 +258,58 @@ export default function Profile() {
         </div>
       </header>
 
-      {/* ===== LAYOUT: SIDEBAR + CONTENIDO ===== */}
+      {/* ===== LAYOUT: CONTENIDO PRINCIPAL ===== */}
       <div className="grid lg:grid-cols-[260px,1fr] gap-6">
-        {/* SIDEBAR WATCHLIST */}
-        <aside className="bg-black/70 border border-red-900/60 rounded-2xl p-4">
-          <h2 className="text-sm font-semibold mb-3">
-            Mi Watchlist
-          </h2>
-          <ul className="space-y-2 text-xs">
-            <li className="flex items-center justify-between py-1 px-2 rounded-lg bg-white/5">
-              <span className="text-gray-300">Por ver pronto</span>
-              <span className="text-gray-100">
-                {totalWatchlist}
-              </span>
-            </li>
-            <li className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-white/5 transition">
-              <span className="text-gray-500">
-                Favoritas 
-              </span>
-              <span className="text-gray-500">0</span>
-            </li>
-            <li className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-white/5 transition">
-              <span className="text-gray-500">
-                Series en curso 
-              </span>
-              <span className="text-gray-500">0</span>
-            </li>
-          </ul>
-        </aside>
+        <aside className="hidden lg:block" />
 
-        {/* CONTENIDO PRINCIPAL */}
-        <main className="space-y-6">
+        <main className="space-y-6 lg:col-span-1">
           {/* TABS */}
           <div className="flex border-b border-red-900/60 text-xs md:text-sm">
-            <TabButton
+            <ProfileTabButton
               label="Resumen"
               active={activeTab === "summary"}
               onClick={() => setActiveTab("summary")}
             />
-            <TabButton
+            <ProfileTabButton
               label="Reseñas"
               active={activeTab === "reviews"}
               onClick={() => setActiveTab("reviews")}
             />
-            <TabButton
+            <ProfileTabButton
               label="Estadísticas"
               active={activeTab === "stats"}
               onClick={() => setActiveTab("stats")}
             />
           </div>
 
-          {/* CONTENIDO DE CADA TAB */}
           {activeTab === "summary" && (
-            <SummaryTab
-              loading={loading}
+            <ProfileSummaryTab
+              loading={loadingMovies}
               topRated={topRated}
               movieById={movieById}
+              tvById={tvById}
               recentReviews={recentReviews}
               avgRating={avgRating}
+              lastWatchMovie={lastWatchMovie}
             />
           )}
 
           {activeTab === "reviews" && (
-            <ReviewsTab
+            <ProfileReviewsTab
               reviews={reviews}
               movieById={movieById}
+              tvById={tvById}
             />
           )}
 
           {activeTab === "stats" && (
-            <StatsTab
+            <ProfileStatsTab
               totalMoviesRated={totalMoviesRated}
               totalReviews={totalReviews}
               totalWatchlist={totalWatchlist}
               avgRating={avgRating}
               topGenres={topGenres}
+              ratings={ratings}
             />
           )}
         </main>
@@ -233,333 +318,12 @@ export default function Profile() {
   );
 }
 
-/* ====== COMPONENTES AUXILIARES ====== */
 
 function StatPill({ label, value }: { label: string; value: number }) {
   return (
-    <div className="px-3 py-2 rounded-xl bg-black/80 border border-red-900/70 min-w-[80px] text-center">
+    <div className="px-3 py-2 bg-black/80 border border-red-900/70 min-w-[80px] text-center">
       <div className="text-xs text-gray-400">{label}</div>
       <div className="text-lg font-semibold">{value}</div>
     </div>
-  );
-}
-
-function TabButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "px-4 py-2 border-b-2 -mb-px transition text-xs md:text-sm " +
-        (active
-          ? "border-red-500 text-white"
-          : "border-transparent text-gray-400 hover:text-gray-200 hover:border-red-700")
-      }
-    >
-      {label}
-    </button>
-  );
-}
-
-/* ===== TAB: RESUMEN ===== */
-
-function SummaryTab({
-  loading,
-  topRated,
-  movieById,
-  recentReviews,
-  avgRating,
-}: {
-  loading: boolean;
-  topRated: Rating[];
-  movieById: Map<number, TmdbMovie>;
-  recentReviews: Review[];
-  avgRating: string;
-}) {
-  return (
-    <div className="space-y-6">
-      {/* Sub stats resumidas */}
-      <section className="grid sm:grid-cols-3 gap-4 text-xs md:text-sm">
-        <div className="bg-black/70 border border-red-900/60 rounded-2xl p-3">
-          <div className="text-gray-400 mb-1">Viendo ahora</div>
-          <p className="text-gray-300 text-xs">
-            (Próximamente: progreso de series)
-          </p>
-        </div>
-        <div className="bg-black/70 border border-red-900/60 rounded-2xl p-3">
-          <div className="text-gray-400 mb-1">Última reseña</div>
-          {recentReviews[0] ? (
-            <p className="text-gray-200 text-xs line-clamp-2">
-              {recentReviews[0].body}
-            </p>
-          ) : (
-            <p className="text-gray-500 text-xs">
-              Todavía no has escrito reseñas.
-            </p>
-          )}
-        </div>
-        <div className="bg-black/70 border border-red-900/60 rounded-2xl p-3">
-          <div className="text-gray-400 mb-1">Nota media</div>
-          <div className="text-lg font-semibold">
-            {avgRating !== "—" ? `${avgRating} / 5` : "—"}
-          </div>
-        </div>
-      </section>
-
-      {/* Películas destacadas (carrusel) */}
-      <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm md:text-base font-semibold">
-            Películas destacadas
-          </h2>
-          <span className="text-xs text-gray-500">
-            Ordenado por tu calificación
-          </span>
-        </div>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {loading && (
-            <div className="text-xs text-gray-400">
-              Cargando datos…
-            </div>
-          )}
-          {!loading && topRated.length === 0 && (
-            <div className="text-xs text-gray-400">
-              Aún no has calificado películas.
-            </div>
-          )}
-          {topRated.map((r) => {
-            const mv = movieById.get(r.movieId);
-            if (!mv) return null;
-            const year = (mv.release_date || "").slice(0, 4);
-            return (
-              <a
-                key={r.movieId}
-                href={`#/movie/${r.movieId}`}
-                className="min-w-[140px] sm:min-w-[160px] bg-black/70 border border-red-900/60 rounded-2xl overflow-hidden hover:-translate-y-1 transition-transform"
-              >
-                {mv.poster_path && (
-                  <img
-                    src={posterUrl(mv.poster_path, "w342")}
-                    className="w-full aspect-[2/3] object-cover"
-                  />
-                )}
-                <div className="p-2 text-xs">
-                  <div className="font-semibold line-clamp-2">
-                    {mv.title}
-                  </div>
-                  <div className="text-gray-400 flex items-center justify-between mt-1">
-                    <span>{year}</span>
-                    <span className="bg-yellow-500 text-black px-1.5 py-[1px] rounded text-[11px] font-semibold">
-                      {r.stars.toFixed(1)}
-                    </span>
-                  </div>
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Reseñas recientes */}
-      <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm md:text-base font-semibold">
-            Reseñas recientes
-          </h2>
-          <span className="text-xs text-gray-500">
-            Lo último de tu actividad
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          {recentReviews.length === 0 && (
-            <p className="text-xs text-gray-500">
-              Todavía no has escrito reseñas.
-            </p>
-          )}
-
-          {recentReviews.map((r) => {
-            const mv = movieById.get(r.movieId);
-            const year = mv?.release_date?.slice(0, 4);
-            return (
-              <div
-                key={r.id}
-                className="flex gap-3 bg-black/70 border border-red-900/60 rounded-2xl p-3"
-              >
-                <div className="w-12 sm:w-16 flex-shrink-0 bg-gray-800 rounded-lg overflow-hidden">
-                  {mv?.poster_path && (
-                    <img
-                      src={posterUrl(mv.poster_path, "w342")}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
-                <div className="text-xs md:text-sm flex-1">
-                  <div className="font-semibold">
-                    {mv?.title || "Película"}
-                    {year && (
-                      <span className="text-gray-400 font-normal">
-                        {" "}
-                        ({year})
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-gray-400 mb-1">
-                    {new Date(r.createdAt).toLocaleDateString()}
-                  </div>
-                  <p className="text-gray-200 line-clamp-3">
-                    {r.body}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* ===== TAB: TODAS LAS RESEÑAS ===== */
-
-function ReviewsTab({
-  reviews,
-  movieById,
-}: {
-  reviews: Review[];
-  movieById: Map<number, TmdbMovie>;
-}) {
-  const sorted = [...reviews].sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() -
-      new Date(a.createdAt).getTime()
-  );
-
-  return (
-    <section className="space-y-3">
-      {sorted.length === 0 && (
-        <p className="text-sm text-gray-500">
-          Todavía no has escrito reseñas.
-        </p>
-      )}
-
-      {sorted.map((r) => {
-        const mv = movieById.get(r.movieId);
-        const year = mv?.release_date?.slice(0, 4);
-        return (
-          <div
-            key={r.id}
-            className="flex gap-3 bg-black/70 border border-red-900/60 rounded-2xl p-3"
-          >
-            <div className="w-12 sm:w-16 flex-shrink-0 bg-gray-800 rounded-lg overflow-hidden">
-              {mv?.poster_path && (
-                <img
-                  src={posterUrl(mv.poster_path, "w342")}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-            <div className="text-xs md:text-sm flex-1">
-              <div className="font-semibold">
-                {mv?.title || "Película"}
-                {year && (
-                  <span className="text-gray-400 font-normal">
-                    {" "}
-                    ({year})
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] text-gray-400 mb-1">
-                {new Date(r.createdAt).toLocaleString()}
-              </div>
-              <p className="text-gray-200 whitespace-pre-line">
-                {r.body}
-              </p>
-            </div>
-          </div>
-        );
-      })}
-    </section>
-  );
-}
-
-/* ===== TAB: ESTADÍSTICAS ===== */
-
-function StatsTab({
-  totalMoviesRated,
-  totalReviews,
-  totalWatchlist,
-  avgRating,
-  topGenres,
-}: {
-  totalMoviesRated: number;
-  totalReviews: number;
-  totalWatchlist: number;
-  avgRating: string;
-  topGenres: [string, number][];
-}) {
-  return (
-    <section className="grid md:grid-cols-2 gap-4 text-xs md:text-sm">
-      <div className="bg-black/70 border border-red-900/60 rounded-2xl p-4 space-y-1">
-        <h3 className="font-semibold mb-1">Resumen general</h3>
-        <p className="text-gray-300">
-          Películas calificadas:{" "}
-          <span className="font-semibold">
-            {totalMoviesRated}
-          </span>
-        </p>
-        <p className="text-gray-300">
-          Reseñas escritas:{" "}
-          <span className="font-semibold">
-            {totalReviews}
-          </span>
-        </p>
-        <p className="text-gray-300">
-          En tu Watchlist:{" "}
-          <span className="font-semibold">
-            {totalWatchlist}
-          </span>
-        </p>
-        <p className="text-gray-300">
-          Nota media:{" "}
-          <span className="font-semibold">
-            {avgRating !== "—" ? `${avgRating} / 5` : "—"}
-          </span>
-        </p>
-      </div>
-
-      <div className="bg-black/70 border border-red-900/60 rounded-2xl p-4">
-        <h3 className="font-semibold mb-2">
-          Géneros favoritos
-        </h3>
-        {topGenres.length === 0 ? (
-          <p className="text-gray-500 text-xs">
-            Aún no hay suficientes datos de géneros.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {topGenres.map(([name, count]) => (
-              <li
-                key={name}
-                className="flex items-center justify-between"
-              >
-                <span className="text-gray-200">{name}</span>
-                <span className="text-gray-400 text-xs">
-                  {count} títulos
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </section>
   );
 }

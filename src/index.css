@@ -5,7 +5,6 @@
 @tailwind utilities;
 
 @layer components {
-  /* ========= HERO GENÉRICO ========= */
   .fv-hero {
     @apply relative flex-1 overflow-hidden text-white;
   }
@@ -41,7 +40,8 @@
             shadow-[0_12px_32px_rgba(0,0,0,0.9)]
             hover:bg-red-600 hover:text-white hover:border-red-500
             hover:translate-y-[1px]
-            transition;
+            transition
+            cursor-pointer;
     border-radius: 0;
   }
 
@@ -64,40 +64,44 @@
     transform: scale(1.1);
   }
 
-  /* Degradado horizontal estilo Netflix */
   .movie-page__hero-overlay {
     @apply absolute inset-0 bg-gradient-to-r from-black/90 via-black/70 to-black/30;
     z-index: 1;
   }
 
-  /* Layout 2 columnas (póster izq, info der) */
-.movie-page__hero-inner {
-  /* Contenedor principal del hero: layout tipo Netflix */
-  @apply relative max-w-6xl mx-auto px-4
-         pt-24 md:pt-24 pb-16   /* ⬅️ antes tenías pt-32 pb-20 */
-         flex flex-col md:flex-row gap-8 md:gap-10
-         items-start;
-  z-index: 2;
-}
-
-  .movie-page__poster-wrapper {
-  @apply flex justify-center md:justify-start md:mr-6 flex-shrink-0;
-}
-
-  .movie-page__poster {
-  @apply w-52 shadow-2xl border border-red-900/60 rounded-none;
+  .movie-page__hero-inner {
+    @apply relative max-w-6xl mx-auto px-4
+           pt-24 md:pt-24 pb-16
+           flex flex-col md:flex-row gap-8 md:gap-10
+           items-start;
+    z-index: 2;
   }
+  .shelf-card--person,
+  .shelf-card--season {
+    @apply w-28 sm:w-32 md:w-36 flex-shrink-0;
+  }
+  .shelf-card--highlight {
+  @apply ring-2 ring-yellow-400/80;
+}
+
+
+.movie-page__poster-wrapper {
+  @apply flex justify-center md:justify-start md:mr-6 flex-shrink-0;
+  @apply w-54 md:w-62 lg:w-70 aspect-[2/3];
+}
+
+.movie-page__poster {
+  @apply w-full h-full object-cover shadow-2xl rounded-none;
+}
 
   .movie-page__title {
     @apply text-3xl md:text-4xl font-bold;
   }
 
-  /* línea meta: año · duración · nota · votos */
   .movie-page__meta-line {
     @apply mt-2 text-sm text-gray-200 flex flex-wrap items-center gap-3;
   }
 
-  /* Chips de géneros */
   .movie-page__genres {
     @apply mt-2 flex flex-wrap gap-2;
   }
@@ -113,39 +117,41 @@
 
   .movie-page__overview {
     @apply mt-3 text-sm md:text-base text-gray-100
-         max-w-3xl md:max-w-4xl;
+           max-w-3xl md:max-w-4xl;
   }
-  /* ===== MODAL RESEÑA / CALIFICAR ===== */
 
-.movie-modal {
-  @apply w-full max-w-2xl bg-black
-         border border-red-800
-         rounded-2xl p-5 md:p-6
-         shadow-[0_25px_80px_rgba(0,0,0,1)];
-}
+  /* ===== RESEÑA / CALIFICAR ===== */
+L 
+  .movie-modal {
+    @apply w-full max-w-2xl bg-black
+           border border-red-800
+            p-5 md:p-6
+           shadow-[0_25px_80px_rgba(0,0,0,1)];
+  }
+
   .movie-modal-backdrop {
-  @apply fixed inset-0 z-50 bg-black/80 flex items-center justify-center;
-}
+    @apply fixed inset-0 z-50 bg-black/80 flex items-center justify-center;
+  }
 
   .movie-modal__panel {
     @apply relative z-10 w-full max-w-2xl
            bg-slate-900 text-white
-           rounded-2xl shadow-2xl
+            shadow-2xl
            p-5 md:p-7;
   }
-.movie-modal__field-label {
-  @apply text-xs uppercase tracking-[0.2em] text-gray-400 mb-1 block;
-}
+
+  .movie-modal__field-label {
+    @apply text-xs uppercase tracking-[0.2em] text-gray-400 mb-1 block;
+  }
+
   .movie-modal__header {
-  @apply flex items-center justify-between mb-4;
-}
+    @apply flex items-center justify-between mb-4;
+  }
 
   .movie-modal__poster-wrap {
     @apply w-24 md:w-28 flex-shrink-0 bg-gray-800;
   }
-  .movie-modal__close {
-  @apply text-gray-400 hover:text-white text-xl leading-none;
-}
+
   .movie-modal__poster {
     @apply w-full h-full object-cover;
   }
@@ -155,8 +161,8 @@
   }
 
   .movie-modal__title {
-  @apply text-lg md:text-xl font-semibold;
-}
+    @apply text-lg md:text-xl font-semibold;
+  }
 
   .movie-modal__year {
     @apply text-sm text-gray-300 font-normal ml-1;
@@ -174,73 +180,112 @@
     @apply mt-4;
   }
 
-.movie-modal__textarea {
-  @apply w-full mt-1 rounded-lg border border-red-900/60 bg-black/60
-         px-3 py-2 text-sm text-white
-         focus:outline-none focus:border-red-500;
-}
+  .movie-modal__textarea {
+    @apply w-full mt-1 rounded-lg border border-red-900/60 bg-black/60
+           px-3 py-2 text-sm text-white
+           focus:outline-none focus:border-red-500;
+  }
 
   .movie-modal__error {
     @apply mt-2 text-xs text-red-400;
   }
 
-.movie-modal__footer {
-  @apply mt-4 flex items-center justify-between gap-4;
-}
+  .movie-modal__footer {
+    @apply mt-4 flex items-center justify-between gap-4;
+  }
+
   .movie-modal__btn {
-    @apply px-4 py-1.5 text-sm font-semibold rounded-full transition;
+    @apply px-4 py-1.5 text-sm font-semibold rounded-full transition cursor-pointer;
   }
 
   .movie-modal__btn--ghost {
     @apply bg-transparent border border-gray-500 text-gray-200
            hover:border-white hover:text-white;
   }
-.movie-modal__primary {
-  @apply px-4 py-2 rounded-full bg-red-600 text-sm font-semibold
-         hover:bg-red-500 transition;
-}
-.movie-modal__secondary {
-  @apply px-3 py-2 rounded-full border border-gray-500 text-xs text-gray-200
-         hover:border-white hover:text-white transition;
-}
-/* Modal de tráiler */
-.movie-modal__trailer-frame {
-  @apply aspect-video rounded-xl overflow-hidden border border-red-900/60 bg-black;
-}
+
+  .movie-modal__primary {
+    @apply px-4 py-2 rounded-full bg-red-600 text-sm font-semibold
+           hover:bg-red-500 transition cursor-pointer;
+  }
+
+  .movie-modal__secondary {
+    @apply px-3 py-2 rounded-full border border-gray-500 text-xs text-gray-200
+           hover:border-white hover:text-white transition cursor-pointer;
+  }
+
+  .movie-modal__close {
+    @apply text-gray-400 hover:text-white text-xl leading-none cursor-pointer;
+  }
+
+  .movie-modal__trailer-frame {
+    @apply aspect-video rounded-xl overflow-hidden border border-red-900/60 bg-black;
+  }
+
   .movie-modal__btn--primary {
     @apply bg-green-600 hover:bg-green-500 text-white;
   }
 
-  /* Botón pequeño bajo "Tu puntuación" */
-.movie-page__review-btn {
-  @apply inline-flex items-center justify-center
-         px-5 py-2.5 rounded-full
-         bg-red-700 text-white text-sm font-semibold
-         hover:bg-red-600 hover:shadow-[0_0_25px_rgba(248,113,113,0.5)]
-         transition;
-}
-
-  /* Póster sin bordes redondos en la página de película */
-  .movie-page__poster {
-    @apply w-52 shadow-2xl;
+  .movie-page__review-btn {
+    @apply inline-flex items-center justify-center
+           px-5 py-2.5 rounded-full
+           bg-red-700 text-white text-sm font-semibold
+           hover:bg-red-600 hover:shadow-[0_0_25px_rgba(248,113,113,0.5)]
+           transition
+           cursor-pointer;
   }
 
-  /* Fila de acciones: botones + rating usuario */
+  .movie-page__review-btn {
+    @apply inline-flex items-center justify-center
+           px-6 py-2.5
+           bg-red-700 text-white text-sm font-semibold
+           uppercase tracking-[0.18em]
+           border border-red-700
+           hover:bg-red-600 hover:border-red-500
+           hover:shadow-[0_0_25px_rgba(248,113,113,0.5)]
+           transition
+           cursor-pointer;
+    border-radius: 0; 
+  }
+
   .movie-page__actions {
-    @apply mt-4 flex flex-wrap items-center gap-4;
+    @apply mt-4 flex flex-wrap items-center gap-3 md:gap-4;
   }
 
   .movie-page__play-btn {
     @apply inline-flex items-center gap-2
-         px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold
-         hover:bg-red-600 hover:text-white transition;
+           px-6 py-2.5
+           bg-white text-black text-sm font-semibold
+           uppercase tracking-[0.18em]
+           border border-white/80
+           hover:bg-red-600 hover:text-white hover:border-red-500
+           transition
+           cursor-pointer;
+    border-radius: 0;
   }
 
-.movie-page__secondary-btn {
-  @apply inline-flex items-center gap-2
-         px-5 py-2.5 rounded-full border border-gray-400 text-sm text-gray-100
-         hover:border-red-500 hover:text-white transition;
-}
+  .movie-page__secondary-btn {
+    @apply inline-flex items-center gap-2
+           px-6 py-2.5
+           bg-black/60 text-gray-100 text-sm font-semibold
+           uppercase tracking-[0.18em]
+           border border-gray-400
+           hover:border-red-500 hover:text-white hover:bg-black
+           transition
+           cursor-pointer;
+    border-radius: 0;
+  }
+
+  .movie-page__ghost-btn {
+    @apply inline-flex items-center justify-center
+           px-6 py-2.5
+           bg-black text-gray-100 text-sm font-semibold
+           uppercase tracking-[0.18em]
+           border border-red-700
+           hover:bg-red-700 hover:text-white hover:border-red-500
+           transition
+           cursor-pointer;
+    border-radius: 0;
+  }
   .movie-page__rating-row {
     @apply flex flex-wrap items-center gap-4 mt-2;
   }
@@ -277,7 +322,7 @@
     @apply text-xl md:text-2xl font-semibold mb-3;
   }
 
-  /* ========= SEARCH ESTILO NETFLIX ========= */
+  /* ========= SEARCH ========= */
   .fv-search {
     @apply hidden md:flex items-center ml-6 relative;
   }
@@ -344,7 +389,7 @@
     @apply px-3 py-1 border border-red-900/60 text-gray-200
            bg-black/60 uppercase tracking-[0.18em]
            hover:bg-red-600 hover:text-white hover:border-red-500
-           transition;
+           transition cursor-pointer;
     border-radius: 0;
   }
 
@@ -423,7 +468,7 @@
            text-xs font-bold
            bg-black/70 text-gray-200 border border-gray-500
            hover:bg-red-600 hover:border-red-400 hover:text-white
-           transition;
+           transition cursor-pointer;
     border-radius: 9999px;
   }
 
@@ -431,7 +476,6 @@
     @apply bg-red-600 border-red-500 text-white;
   }
 
-  /* FILAS BAJO HERO (si las usas en otra vista) */
   .home-row {
     @apply mt-10;
   }
@@ -490,7 +534,6 @@
     @apply mt-1 text-[11px] text-gray-300 flex gap-2;
   }
 
-  /* ========= WATCHLIST ========= */
   .watchlist {
     @apply max-w-5xl mx-auto px-4 py-8 min-h-screen bg-black text-white;
   }
@@ -530,12 +573,12 @@
 
   .watchlist-select__button {
     @apply w-full flex items-center justify-between gap-2
-           px-3 py-1.5 rounded-full
+           px-3 py-1.5
            bg-white text-black text-xs md:text-sm
            border border-white/80
            shadow-[0_4px_14px_rgba(0,0,0,0.6)]
            hover:bg-red-600 hover:text-white hover:border-red-500
-           transition;
+           transition cursor-pointer;
   }
 
   .watchlist-select__chevron {
@@ -568,28 +611,83 @@
   }
 
   .watchlist-card {
-    @apply block;
+    @apply relative block bg-black/60 text-sm cursor-pointer
+           transform hover:-translate-y-1 transition-transform duration-200
+           hover:shadow-[0_16px_40px_rgba(0,0,0,0.9)];
+  }
+
+  .watchlist-card__frame {
+    @apply relative w-full;
   }
 
   .watchlist-card__poster {
-    @apply w-full rounded-lg object-cover group-hover:opacity-90 transition
-           aspect-[2/3] bg-gray-800;
+    @apply w-full aspect-[2/3] object-cover bg-gray-800;
   }
 
   .watchlist-card__poster--empty {
     @apply bg-gray-800;
   }
 
+  .watchlist-card__overlay {
+    @apply absolute inset-x-0 bottom-0
+           bg-gradient-to-t from-black via-black/80 to-transparent
+           p-2;
+  }
+
   .watchlist-card__title {
-    @apply text-sm mt-1 line-clamp-2;
+    @apply text-sm font-semibold leading-tight line-clamp-2;
   }
 
   .watchlist-card__meta {
-    @apply text-xs text-gray-400 flex items-center gap-1;
+    @apply mt-1 text-[11px] text-gray-300 flex items-center gap-1;
   }
 
   .watchlist-card__tag {
     @apply uppercase text-[10px] tracking-wide;
+  }
+  .watchlist__stats {
+    @apply text-xs md:text-sm text-gray-400;
+  }
+
+  .landing-features {
+    @apply py-16 px-6 bg-gradient-to-b from-[#1b0006] to-black text-white;
+  }
+
+  .landing-features__inner {
+    @apply max-w-6xl mx-auto grid md:grid-cols-3 gap-10;
+  }
+
+  .landing-features__card {
+    @apply bg-black/70 border border-red-900/40
+           rounded-2xl p-7
+           backdrop-blur-sm
+           transition-transform duration-300
+           hover:-translate-y-1
+           hover:border-red-500/80
+           hover:shadow-[0_0_35px_rgba(248,113,113,0.25)];
+           border-radius: 0;
+  }
+
+  .landing-features__icon-wrap {
+    @apply flex justify-center mb-5;
+  }
+
+  .landing-features__icon-circle {
+    @apply w-10 h-10 rounded-full
+           flex items-center justify-center
+           bg-red-700/10 border border-red-500/60;
+  }
+
+  .landing-features__icon-img {
+    @apply w-5 h-5;
+  }
+
+  .landing-features__title {
+    @apply text-lg font-semibold mb-2;
+  }
+
+  .landing-features__text {
+    @apply text-sm text-gray-300 leading-relaxed;
   }
 
   /* ========= FOOTER ========= */
@@ -598,7 +696,6 @@
   }
 }
 
-/* ========= UTILITIES PERSONALIZADAS ========= */
 @layer utilities {
   @keyframes fv-fade-in-up {
     from {
@@ -625,9 +722,7 @@
   }
 }
 
-/* ========= BASE / HEADER FUERA DE @layer ========= */
 
-/* Fuente base */
 html {
   font-family: "Inter", sans-serif;
 }
@@ -678,7 +773,7 @@ html {
 }
 
 .fv-header__avatar-wrapper {
-  @apply flex items-center hover:opacity-100 transition;
+  @apply flex items-center hover:opacity-100 transition cursor-pointer;
 }
 
 .fv-header__avatar {
@@ -686,5 +781,36 @@ html {
 }
 
 .fv-header__logout {
-  @apply opacity-80 hover:opacity-100 transition;
+  @apply opacity-80 hover:opacity-100 transition cursor-pointer;
+}
+.fv-header__menu-link {
+  position: relative;
+  padding-bottom: 4px; 
+}
+
+.fv-header__menu-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 2px;
+  background: transparent;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.18s ease-out, background-color 0.18s ease-out;
+}
+
+.fv-header__menu-link--active {
+  font-weight: 600;
+}
+
+.fv-header__menu-link--active::after {
+  background: #ff2222; 
+  transform: scaleX(1);
+}
+
+.fv-header__menu-link:not(.fv-header__menu-link--active):hover::after {
+  background: #ff2222;
+  transform: scaleX(0.6);
 }

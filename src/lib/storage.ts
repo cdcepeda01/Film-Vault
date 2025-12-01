@@ -1,11 +1,7 @@
-// src/lib/storage.ts
 import type { Review, Rating, User } from "../types";
 
 const key = (k: string) => `cinebox:${k}`;
 
-/* =========================
-   Usuario
-   ========================= */
 
 export const saveUser = (u: User | null) =>
   localStorage.setItem(key("user"), JSON.stringify(u));
@@ -13,9 +9,7 @@ export const saveUser = (u: User | null) =>
 export const getUser = (): User | null =>
   JSON.parse(localStorage.getItem(key("user")) || "null");
 
-/* =========================
-   Watchlist PELÍCULAS
-   ========================= */
+
 
 export const getWatchlist = (uid: string): number[] =>
   JSON.parse(localStorage.getItem(key(`wl:${uid}`)) || "[]");
@@ -26,9 +20,6 @@ export const toggleWatch = (uid: string, movieId: number) => {
   localStorage.setItem(key(`wl:${uid}`), JSON.stringify([...wl]));
 };
 
-/* =========================
-   Watchlist SERIES
-   ========================= */
 
 export const getWatchlistSeries = (uid: string): number[] =>
   JSON.parse(localStorage.getItem(key(`wlSeries:${uid}`)) || "[]");
@@ -39,9 +30,7 @@ export const toggleWatchSeries = (uid: string, showId: number) => {
   localStorage.setItem(key(`wlSeries:${uid}`), JSON.stringify([...wl]));
 };
 
-/* =========================
-   Ratings
-   ========================= */
+
 
 export const getRatings = (uid: string): Rating[] =>
   JSON.parse(localStorage.getItem(key(`rt:${uid}`)) || "[]");
@@ -52,9 +41,7 @@ export const setRating = (uid: string, r: Rating) => {
   localStorage.setItem(key(`rt:${uid}`), JSON.stringify(arr));
 };
 
-/* =========================
-   Reviews
-   ========================= */
+
 
 export const getAllReviews = (): Review[] =>
   JSON.parse(localStorage.getItem(key("reviews")) || "[]");
@@ -70,9 +57,6 @@ export const getMovieReviews = (movieId: number) =>
     .filter((r) => r.movieId === movieId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-/* =========================
-   Likes a reseñas
-   ========================= */
 
 const likeKey = (uid: string) => `cinebox:reviewlikes:${uid}`;
 
@@ -85,7 +69,6 @@ export const toggleReviewLike = (uid: string, reviewId: string) => {
   localStorage.setItem(likeKey(uid), JSON.stringify([...set]));
 };
 
-// contador local por reseña
 export const getReviewLikeCount = (reviewId: string): number =>
   Number(localStorage.getItem(`cinebox:reviewlikecount:${reviewId}`) || "0");
 

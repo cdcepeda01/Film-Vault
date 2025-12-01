@@ -1,10 +1,8 @@
-// src/components/layout/Header.tsx
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { searchMovies } from "../../lib/tmdb";
 
-// 👉 importa los assets desde src/assets
 import logoMain from "../../assets/filmvault-logo.png";
 import logoRed from "../../assets/filmvault-logo-red.png";
 import logoutIcon from "../../assets/logout-icon.png";
@@ -16,13 +14,23 @@ export default function Header() {
 
   const isLanding = location.pathname === "/";
   const isLogin = location.pathname === "/login";
+  const isSignup = location.pathname === "/signup";
+  const isAuthPage = isLogin || isSignup;
 
-  // 👇 Elegimos el logo según la sección (ahora usando los imports)
-  const logoSrc = isLanding || isLogin ? logoMain : logoRed;
+  const logoSrc = isLanding || isAuthPage ? logoMain : logoRed;
+
+  const isMoviesSection =
+    location.pathname.startsWith("/explore") ||
+    location.pathname.startsWith("/movie");
+
+  const isSeriesSection =
+    location.pathname.startsWith("/series") ||
+    location.pathname.startsWith("/tv");
+
+  const isWatchlistSection = location.pathname.startsWith("/watchlist");
 
   const [hidden, setHidden] = useState(false);
 
-  // Ocultar al hacer scroll hacia abajo
   useEffect(() => {
     let lastY = window.scrollY;
 
@@ -53,7 +61,6 @@ export default function Header() {
       return;
     }
 
-    // debounce
     if (typingTimeoutRef.current !== null) {
       window.clearTimeout(typingTimeoutRef.current);
     }
@@ -90,8 +97,7 @@ export default function Header() {
           />
         </Link>
 
-        {/* LOGIN: solo logo */}
-        {isLogin ? (
+        {isAuthPage ? (
           <div className="fv-header__spacer" />
         ) : isLanding ? (
           <>
@@ -107,25 +113,38 @@ export default function Header() {
           </>
         ) : (
           <>
-            {/* MENÚ IZQUIERDO */}
             <div className="fv-header__menu">
               <Link
                 to="/explore"
-                className="fv-header__menu-link fv-header__menu-link--primary"
+                className={
+                  "fv-header__menu-link fv-header__menu-link--primary" +
+                  (isMoviesSection ? " fv-header__menu-link--active" : "")
+                }
               >
                 Películas
               </Link>
 
-              <Link to="/series" className="fv-header__menu-link">
+              <Link
+                to="/series"
+                className={
+                  "fv-header__menu-link" +
+                  (isSeriesSection ? " fv-header__menu-link--active" : "")
+                }
+              >
                 Series
               </Link>
 
-              <Link to="/watchlist" className="fv-header__menu-link">
+              <Link
+                to="/watchlist"
+                className={
+                  "fv-header__menu-link" +
+                  (isWatchlistSection ? " fv-header__menu-link--active" : "")
+                }
+              >
                 Watchlist
               </Link>
             </div>
 
-            {/* BUSCADOR ESTILO NETFLIX */}
             <div className="fv-search">
               <form onSubmit={handleSearchSubmit} className="fv-search__field">
                 <span className="fv-search__icon">⌕</span>

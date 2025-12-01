@@ -1,8 +1,7 @@
-// src/pages/Watchlist.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
-import { getWatchlist, getWatchlistSeries } from "../lib/storage";
+import { listenWatchlist, type WatchlistDoc } from "../lib/watchlist";
 import { getManyMovies, getManySeries, posterUrl } from "../lib/tmdb";
 
 type TmdbItem = any;
@@ -11,9 +10,9 @@ type SortMode = "added" | "title" | "year";
 type FilterMode = "all" | "movie" | "tv";
 
 interface WatchItem {
-  id: number;
+  id: number; 
   kind: "movie" | "tv";
-  addedIndex: number;
+  createdAt: Date;
   data: TmdbItem;
 }
 
@@ -38,74 +37,74 @@ export default function Watchlist() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [openSelect, setOpenSelect] = useState<OpenSelect>("none");
 
-  // Carga inicial (pelis + series)
   useEffect(() => {
-    (async () => {
-      if (!user) {
+    if (!user) {
+      setItems([]);
+      return;
+    }
+
+    const unsubscribe = listenWatchlist(user.id, (docs: WatchlistDoc[]) => {
+      if (!docs.length) {
         setItems([]);
         return;
       }
 
-      const movieIds = getWatchlist(user.id);
-      const seriesIds = getWatchlistSeries(user.id);
+      (async () => {
+        const movieIds = docs
+          .filter((d) => d.kind === "movie")
+          .map((d) => d.refId);
 
-      if (!movieIds.length && !seriesIds.length) {
+        const seriesIds = docs
+          .filter((d) => d.kind === "tv")
+          .map((d) => d.refId);
+
+        const [moviesData, seriesData] = await Promise.all([
+          movieIds.length ? getManyMovies(movieIds) : Promise.resolve([]),
+          seriesIds.length ? getManySeries(seriesIds) : Promise.resolve([]),
+        ]);
+
+        const movieMap = new Map<number, TmdbItem>();
+        moviesData.forEach((m: any) => movieMap.set(m.id, m));
+
+        const seriesMap = new Map<number, TmdbItem>();
+        seriesData.forEach((s: any) => seriesMap.set(s.id, s));
+
+        const combined: WatchItem[] = docs
+          .map((doc) => {
+            const data =
+              doc.kind === "movie"
+                ? movieMap.get(doc.refId)
+                : seriesMap.get(doc.refId);
+
+            if (!data) return null;
+
+            return {
+              id: doc.refId,
+              kind: doc.kind,
+              createdAt: doc.createdAt,
+              data,
+            } as WatchItem;
+          })
+          .filter((x): x is WatchItem => x !== null);
+
+        setItems(combined);
+      })().catch((err) => {
+        console.error("Error cargando detalles de watchlist:", err);
         setItems([]);
-        return;
-      }
-
-      setItems(null); // loading
-
-      const [moviesData, seriesData] = await Promise.all([
-        movieIds.length ? getManyMovies(movieIds) : Promise.resolve([]),
-        seriesIds.length ? getManySeries(seriesIds) : Promise.resolve([]),
-      ]);
-
-      const movieMap = new Map<number, TmdbItem>();
-      moviesData.forEach((m: any) => movieMap.set(m.id, m));
-
-      const seriesMap = new Map<number, TmdbItem>();
-      seriesData.forEach((s: any) => seriesMap.set(s.id, s));
-
-      const combined: WatchItem[] = [];
-
-      movieIds.forEach((id, index) => {
-        const m = movieMap.get(id);
-        if (!m) return;
-        combined.push({
-          id,
-          kind: "movie",
-          addedIndex: index,
-          data: m,
-        });
       });
+    });
 
-      const baseIndex = movieIds.length;
-      seriesIds.forEach((id, index) => {
-        const s = seriesMap.get(id);
-        if (!s) return;
-        combined.push({
-          id,
-          kind: "tv",
-          addedIndex: baseIndex + index,
-          data: s,
-        });
-      });
-
-      setItems(combined);
-    })();
+    return () => unsubscribe();
   }, [user]);
 
   const processedItems = useMemo(() => {
     if (!items) return null;
     let list = [...items];
 
-    // Filtro por tipo
     if (filterMode !== "all") {
       list = list.filter((it) => it.kind === filterMode);
     }
 
-    // Orden
     switch (sortMode) {
       case "title":
         list.sort((a, b) =>
@@ -119,10 +118,8 @@ export default function Watchlist() {
 
       case "year":
         list.sort((a, b) => {
-          const dateA =
-            a.data.release_date || a.data.first_air_date || "";
-          const dateB =
-            b.data.release_date || b.data.first_air_date || "";
+          const dateA = a.data.release_date || a.data.first_air_date || "";
+          const dateB = b.data.release_date || b.data.first_air_date || "";
           const yearA = parseInt(dateA.slice(0, 4)) || 0;
           const yearB = parseInt(dateB.slice(0, 4)) || 0;
           return yearB - yearA;
@@ -131,14 +128,24 @@ export default function Watchlist() {
 
       case "added":
       default:
-        list.sort((a, b) => a.addedIndex - b.addedIndex);
+        list.sort(
+          (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+        );
         break;
     }
 
     return list;
   }, [items, sortMode, filterMode]);
 
-  // Distintos estados de usuario / carga
+  const hasItems = processedItems && processedItems.length > 0;
+
+  const movieCount = items
+    ? items.filter((it) => it.kind === "movie").length
+    : 0;
+  const tvCount = items
+    ? items.filter((it) => it.kind === "tv").length
+    : 0;
+
   if (!user) {
     return (
       <div className="watchlist">
@@ -165,7 +172,6 @@ export default function Watchlist() {
             </p>
           </div>
 
-          {/* Filtros visibles incluso cargando */}
           <WatchlistFilters
             sortMode={sortMode}
             setSortMode={setSortMode}
@@ -179,8 +185,6 @@ export default function Watchlist() {
     );
   }
 
-  const hasItems = processedItems && processedItems.length > 0;
-
   return (
     <div className="watchlist">
       <div className="watchlist__header">
@@ -189,9 +193,15 @@ export default function Watchlist() {
           <p className="watchlist__subtitle">
             Todas las películas y series que has guardado en Film Vault.
           </p>
+
+          {items && items.length > 0 && (
+            <p className="watchlist__stats">
+              {movieCount} {movieCount === 1 ? "película" : "películas"} ·{" "}
+              {tvCount} {tvCount === 1 ? "serie" : "series"}
+            </p>
+          )}
         </div>
 
-        {/* 🔽 Filtros SIEMPRE visibles */}
         <WatchlistFilters
           sortMode={sortMode}
           setSortMode={setSortMode}
@@ -219,7 +229,7 @@ export default function Watchlist() {
               : "—";
 
             const detailPath =
-              item.kind === "movie" ? `/movie/${item.id}` : `/series/${item.id}`;
+              item.kind === "movie" ? `/movie/${item.id}` : `/tv/${item.id}`;
 
             return (
               <Link
@@ -227,24 +237,32 @@ export default function Watchlist() {
                 to={detailPath}
                 className="watchlist-card"
               >
-                {m.poster_path ? (
-                  <img
-                    className="watchlist-card__poster"
-                    src={posterUrl(m.poster_path)}
-                  />
-                ) : (
-                  <div className="watchlist-card__poster watchlist-card__poster--empty" />
-                )}
+                <div className="watchlist-card__frame">
+                  {m.poster_path ? (
+                    <img
+                      className="watchlist-card__poster"
+                      src={posterUrl(m.poster_path)}
+                    />
+                  ) : (
+                    <div className="watchlist-card__poster watchlist-card__poster--empty" />
+                  )}
 
-                <div className="watchlist-card__title">{title}</div>
-                <div className="watchlist-card__meta">
-                  {year && <span>{year}</span>}
-                  <span>·</span>
-                  <span>⭐ {rating}</span>
-                  <span>·</span>
-                  <span className="watchlist-card__tag">
-                    {item.kind === "movie" ? "PELÍCULA" : "SERIE"}
-                  </span>
+                  <div className="watchlist-card__overlay">
+                    <div className="watchlist-card__title">{title}</div>
+                    <div className="watchlist-card__meta">
+                      {year && <span>{year}</span>}
+                      {rating !== "—" && (
+                        <>
+                          <span>·</span>
+                          <span>⭐ {rating}</span>
+                        </>
+                      )}
+                      <span>·</span>
+                      <span className="watchlist-card__tag">
+                        {item.kind === "movie" ? "PELÍCULA" : "SERIE"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </Link>
             );
@@ -255,9 +273,6 @@ export default function Watchlist() {
   );
 }
 
-/* ===========
-   Subcomponente: filtros tipo “select”
-   =========== */
 
 interface FiltersProps {
   sortMode: SortMode;
@@ -276,14 +291,12 @@ function WatchlistFilters({
   openSelect,
   setOpenSelect,
 }: FiltersProps) {
-  // 🔧 corregido: no usamos función, sino valor directo
   const toggle = (which: OpenSelect) => {
     setOpenSelect(openSelect === which ? "none" : which);
   };
 
   return (
     <div className="watchlist__controls">
-      {/* Mostrar */}
       <div className="watchlist__control">
         <span className="watchlist__label">Mostrar</span>
         <div className="watchlist-select">
@@ -321,7 +334,6 @@ function WatchlistFilters({
         </div>
       </div>
 
-      {/* Ordenar por */}
       <div className="watchlist__control">
         <span className="watchlist__label">Ordenar por</span>
         <div className="watchlist-select">

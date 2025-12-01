@@ -1,4 +1,3 @@
-// src/components/molecules/ShelfCard.tsx
 import { Link } from "react-router-dom";
 import { posterUrl } from "../../lib/tmdb";
 

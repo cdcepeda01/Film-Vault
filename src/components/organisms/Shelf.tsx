@@ -1,6 +1,6 @@
-// src/components/organisms/Shelf.tsx
 import { Link } from "react-router-dom";
-import { posterUrl, TmdbMovie, TmdbSeries } from "../../lib/tmdb";
+import { posterUrl } from "../../lib/tmdb";
+import type { TmdbMovie, TmdbSeries } from "../../lib/tmdb";
 
 type Item = TmdbMovie | TmdbSeries;
 
@@ -10,7 +10,7 @@ interface ShelfProps {
   watchlistIds: number[];
   onToggleWatchlist?: (id: number) => void;
   userCanEdit?: boolean;
-  kind?: "movie" | "tv"; // 👈 ya lo tenías
+  kind?: "movie" | "tv"; 
 }
 
 export function Shelf({
@@ -28,7 +28,7 @@ export function Shelf({
       <div className="shelf__scroller">
         {items.map((item: any) => {
           const inWatchlist = watchlistIds.includes(item.id);
-          const href = kind === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`; // 👈 AQUÍ LA CLAVE
+          const href = kind === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`; 
 
           const titleText = item.title || item.name;
           const year =
@@ -57,7 +57,6 @@ export function Shelf({
                 </div>
               </Link>
 
-              {/* Botón de watchlist opcional */}
               {userCanEdit && onToggleWatchlist && (
                 <button
                   type="button"

@@ -5,7 +5,7 @@ export default function FvJoinButton() {
   return (
     <button
       className="fv-hero__cta"
-      onClick={() => nav("/login")}
+      onClick={() => nav("/signup")}
     >
       Únete a Film Vault
     </button>

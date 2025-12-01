@@ -1,8 +1,7 @@
-// src/pages/News.tsx
 import { useEffect, useState } from "react";
 import { getNowPlaying, getUpcoming, getTrendingWeek, posterUrl } from "../lib/tmdb";
 
-type Movie = any; // si ya tienes un tipo Movie úsalo aquí
+type Movie = any; 
 
 export default function News() {
   const [nowPlaying, setNowPlaying] = useState<Movie[]>([]);

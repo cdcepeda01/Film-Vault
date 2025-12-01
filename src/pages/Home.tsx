@@ -1,4 +1,3 @@
-// src/pages/Home.tsx
 import { useEffect, useMemo, useState } from "react";
 import {
   getTopRated,
@@ -8,12 +7,16 @@ import {
   getManyMovies,
   getTopRatedThisYear,
   getTopRatedClassics,
+  getRecommendedByGenres,
 } from "../lib/tmdb";
 import { useAuth } from "../auth/useAuth";
-import { getWatchlist, toggleWatch } from "../lib/storage";
-import { Shelf } from "../components/organisms/Shelf"; // 👈 organismo
+import { Shelf } from "../components/organisms/Shelf";
 
-// Mapa básico TMDB → nombre de género (para nombres de las estanterías por género)
+import {
+  listenWatchlist,
+  toggleWatchItem,
+} from "../lib/watchlist";
+
 const GENRE_LABELS: Record<number, string> = {
   28: "Acción",
   12: "Aventura",
@@ -26,32 +29,14 @@ const GENRE_LABELS: Record<number, string> = {
   10749: "Romance",
   878: "Sci-Fi",
   53: "Thriller",
-  10751: "Familia",
   9648: "Misterio",
-  36: "Historia",
-  10752: "Guerra",
   99: "Documental",
 };
 
-type Movie = any; // si quieres luego lo cambias a TmdbMovie
+type Movie = any; 
 
-// 🔁 Nuevos ids de chips (sin "new", añadimos "genre")
-type ChipId = "all" | "top" | "genre" | "trend" | "reco";
 
-// Helper: elegir una "película semilla" para "Porque te gustó X"
-function pickSeedMovie(watchlistMovies: Movie[]) {
-  if (!watchlistMovies.length) return null;
-
-  const recent = watchlistMovies
-    .filter((m) => m.release_date)
-    .sort(
-      (a, b) =>
-        new Date(b.release_date).getTime() -
-        new Date(a.release_date).getTime()
-    );
-
-  return recent[0] ?? watchlistMovies[0];
-}
+type ChipId = "all" | "genre" | "trend";
 
 export default function Home() {
   const { user } = useAuth();
@@ -68,7 +53,12 @@ export default function Home() {
 
   const [activeChip, setActiveChip] = useState<ChipId>("all");
 
-  // Cargar pelis
+  const [favoriteGenres, setFavoriteGenres] = useState<number[]>([]);
+  const [genreRecs, setGenreRecs] = useState<Movie[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+
+  // ============ Carga de películas base (TMDB) ============
+
   useEffect(() => {
     (async () => {
       const [
@@ -96,16 +86,24 @@ export default function Home() {
     })();
   }, []);
 
-  // Cargar watchlist del usuario (ids)
+  // ============ Watchlist desde Firestore  ============
+
   useEffect(() => {
     if (!user) {
       setWatchlistIds([]);
+      setWatchlistMovies([]);
       return;
     }
-    setWatchlistIds(getWatchlist(user.id));
+
+    const unsub = listenWatchlist(user.id, (docs) => {
+      const onlyMovies = docs.filter((d) => d.kind === "movie");
+      const ids = onlyMovies.map((d) => d.refId);
+      setWatchlistIds(ids);
+    });
+
+    return () => unsub();
   }, [user]);
 
-  // Cargar detalles de las pelis en watchlist (para géneros, etc.)
   useEffect(() => {
     const loadWatchlistMovies = async () => {
       if (!watchlistIds.length) {
@@ -121,39 +119,16 @@ export default function Home() {
     loadWatchlistMovies();
   }, [watchlistIds]);
 
-  const handleToggleWatchlist = (movieId: number) => {
-    if (!user) return;
-    toggleWatch(user.id, movieId);
-    setWatchlistIds((prev) =>
-      prev.includes(movieId)
-        ? prev.filter((id) => id !== movieId)
-        : [...prev, movieId]
-    );
-  };
+  // ============ Construir perfil de géneros favoritos ============
 
-  // Chips: quitamos "Nuevos estrenos" y añadimos "Por género"
-  const chips = useMemo(
-    () => [
-      { id: "all" as ChipId, label: "Todo" },
-      { id: "top" as ChipId, label: "Más votadas" },
-      { id: "genre" as ChipId, label: "Por género" },
-      { id: "trend" as ChipId, label: "Tendencias" },
-      { id: "reco" as ChipId, label: "Recomendado para ti" },
-    ],
-    []
-  );
+  useEffect(() => {
+    if (!user || !watchlistMovies.length) {
+      setFavoriteGenres([]);
+      return;
+    }
 
-  /* ===============================
-     Recomendado para ti (personalizado)
-     =============================== */
-
-  type PersonalizedShelf = { title: string; items: Movie[] };
-
-  const personalizedShelves: PersonalizedShelf[] = useMemo(() => {
-    if (!user || !watchlistMovies.length) return [];
-
-    // 1) Perfil de géneros favoritos
     const genreScores = new Map<number, number>();
+
     watchlistMovies.forEach((m) => {
       const ids: number[] =
         m.genre_ids ??
@@ -164,116 +139,91 @@ export default function Home() {
       });
     });
 
-    if (!genreScores.size) return [];
+    if (!genreScores.size) {
+      setFavoriteGenres([]);
+      return;
+    }
 
-    const favoriteGenres = [...genreScores.entries()]
+    const favs = [...genreScores.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([gid]) => gid);
 
-    // Pool general para buscar recomendaciones
-    const pool = [
+    setFavoriteGenres(favs);
+  }, [user, watchlistMovies]);
+
+  // ============  recomendaciones ============
+
+  useEffect(() => {
+    if (!favoriteGenres.length) {
+      setGenreRecs([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setLoadingRecs(true);
+      try {
+        const recs = await getRecommendedByGenres(favoriteGenres);
+        if (!cancelled) {
+          setGenreRecs(recs ?? []);
+        }
+      } catch (e) {
+        console.error("Error cargando recomendaciones por género", e);
+        if (!cancelled) {
+          setGenreRecs([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingRecs(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [favoriteGenres]);
+
+
+  const discoveredForYou = useMemo(() => {
+    if (!user || !watchlistMovies.length) return [];
+
+    const globalPoolRaw = [
       ...topRated,
       ...trending,
       ...upcoming,
       ...nowPlaying,
     ] as Movie[];
 
-    // Eliminar duplicados por id
-    const uniqueMap = new Map<number, Movie>();
-    pool.forEach((m) => {
-      if (m && !uniqueMap.has(m.id)) uniqueMap.set(m.id, m);
+    const uniqueGlobal = new Map<number, Movie>();
+    globalPoolRaw.forEach((m) => {
+      if (m && !uniqueGlobal.has(m.id)) uniqueGlobal.set(m.id, m);
     });
-    const fullPool = [...uniqueMap.values()];
+    const globalPool = [...uniqueGlobal.values()];
 
-    // 2) "Porque te gustó X"
-    const seed = pickSeedMovie(watchlistMovies);
-    let becauseYouLiked: Movie[] = [];
-    if (seed) {
-      const gids: number[] = seed.genre_ids ?? [];
-      if (gids.length) {
-        becauseYouLiked = fullPool
-          .filter(
-            (m) =>
-              m.id !== seed.id &&
-              Array.isArray(m.genre_ids) &&
-              m.genre_ids.some((g: number) => gids.includes(g))
-          )
-          .slice(0, 20);
-      }
-    }
-
-    // 3) Nuevas películas para tu gusto (nowPlaying + upcoming filtrado por géneros)
-    const newForYou = [...nowPlaying, ...upcoming].filter(
-      (m) =>
-        Array.isArray(m.genre_ids) &&
-        m.genre_ids.some((gid: number) => favoriteGenres.includes(gid))
+    const basePool: Movie[] = (genreRecs.length ? genreRecs : globalPool).filter(
+      Boolean
     );
 
-    // 4) Clásicos según tu perfil (<2000 + géneros favoritos)
-    const classicsForYou = fullPool
-      .filter((m) => {
-        if (!m.release_date) return false;
-        const year = parseInt(String(m.release_date).slice(0, 4));
-        return (
-          year < 2000 &&
-          Array.isArray(m.genre_ids) &&
-          m.genre_ids.some((gid: number) => favoriteGenres.includes(gid))
-        );
-      })
-      .slice(0, 20);
+    const watchlistSet = new Set(watchlistMovies.map((m) => m.id));
 
-    // 5) Lo mejor valorado según tu perfil
-    const bestForProfile = fullPool
-      .filter(
+    let candidates = basePool.filter(
+      (m) => m && !watchlistSet.has(m.id)
+    );
+
+    if (favoriteGenres.length) {
+      candidates = candidates.filter(
         (m) =>
           Array.isArray(m.genre_ids) &&
-          m.genre_ids.some((gid: number) => favoriteGenres.includes(gid))
-      )
-      .sort(
-        (a, b) =>
-          (b.vote_average ?? 0) - (a.vote_average ?? 0)
-      )
-      .slice(0, 20);
-
-    const shelves: PersonalizedShelf[] = [];
-
-    if (bestForProfile.length) {
-      shelves.push({
-        title: "Basado en tus géneros favoritos",
-        items: bestForProfile,
-      });
+          m.genre_ids.some((gid: number) =>
+            favoriteGenres.includes(gid)
+          )
+      );
     }
 
-    if (seed && becauseYouLiked.length) {
-      shelves.push({
-        title: `Porque te gustó ${seed.title ?? seed.name}`,
-        items: becauseYouLiked,
-      });
-    }
-
-    if (newForYou.length) {
-      shelves.push({
-        title: "Nuevas películas para ti",
-        items: newForYou.slice(0, 20),
-      });
-    }
-
-    if (classicsForYou.length) {
-      shelves.push({
-        title: "Clásicos que te podrían encantar",
-        items: classicsForYou,
-      });
-    }
-
-    if (bestForProfile.length) {
-      shelves.push({
-        title: "Lo mejor valorado para tu perfil",
-        items: bestForProfile,
-      });
-    }
-
-    return shelves;
+    return candidates.slice(0, 20);
   }, [
     user,
     watchlistMovies,
@@ -281,22 +231,39 @@ export default function Home() {
     trending,
     upcoming,
     nowPlaying,
+    genreRecs,
+    favoriteGenres,
   ]);
 
-  /* ===============================
-     Estanterías "Por género"
-     =============================== */
 
-  const GENRE_SECTIONS = [
-    28, // Acción
-    35, // Comedia
-    18, // Drama
-    27, // Terror
-    878, // Sci-Fi
-    10749, // Romance
-    99, // Documental
-  ];
+  const handleToggleWatchlist = async (movieId: number) => {
+    if (!user) return;
 
+    setWatchlistIds((prev) =>
+      prev.includes(movieId)
+        ? prev.filter((id) => id !== movieId)
+        : [...prev, movieId]
+    );
+
+    try {
+      await toggleWatchItem("movie", movieId, user.id);
+    } catch (e) {
+      console.error("Error al actualizar watchlist en Firestore", e);
+    }
+  };
+
+  const chips = useMemo(
+    () => [
+      { id: "all" as ChipId, label: "Principal" },
+      { id: "genre" as ChipId, label: "Por género" },
+      { id: "trend" as ChipId, label: "Tendencias" },
+    ],
+    []
+  );
+
+
+
+  const GENRE_SECTIONS = Object.keys(GENRE_LABELS).map((k) => Number(k));
   const genreShelves = useMemo(() => {
     const pool = [
       ...topRated,
@@ -305,7 +272,6 @@ export default function Home() {
       ...upcoming,
     ] as Movie[];
 
-    // quitar duplicados
     const byId = new Map<number, Movie>();
     pool.forEach((m) => {
       if (m && !byId.has(m.id)) byId.set(m.id, m);
@@ -326,12 +292,11 @@ export default function Home() {
 
   return (
     <div className="home-shelves">
-      {/* Cabecera de la sección Home */}
       <header className="home-shelves__header">
         <h1 className="home-shelves__title">Tu estantería de cine</h1>
         <p className="home-shelves__subtitle">
           Recorre colecciones curadas: lo mejor valorado, por género, en cines,
-          próximos estrenos y lo que está marcando tendencia esta semana.
+          próximos estrenos y descubrimientos hechos para ti.
         </p>
 
         <div className="home-shelves__chips">
@@ -350,9 +315,27 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ===== TODO / MÁS VOTADAS ===== */}
-      {(activeChip === "all" || activeChip === "top") && (
+      {activeChip === "all" && (
         <>
+          {user && (
+            <>
+              {loadingRecs && discoveredForYou.length === 0 && (
+                <p className="home-shelves__loading">
+                  Cargando recomendaciones personalizadas...
+                </p>
+              )}
+              {discoveredForYou.length > 0 && (
+                <Shelf
+                  title="Recomendados para ti"
+                  items={discoveredForYou}
+                  watchlistIds={watchlistIds}
+                  onToggleWatchlist={handleToggleWatchlist}
+                  userCanEdit={!!user}
+                />
+              )}
+            </>
+          )}
+
           <Shelf
             title="Mejor valoradas por la crítica"
             items={topRated}
@@ -377,7 +360,6 @@ export default function Home() {
         </>
       )}
 
-      {/* ===== TENDENCIAS ===== */}
       {(activeChip === "all" || activeChip === "trend") && (
         <>
           <Shelf
@@ -404,7 +386,6 @@ export default function Home() {
         </>
       )}
 
-      {/* ===== POR GÉNERO ===== */}
       {activeChip === "genre" && (
         <>
           {genreShelves.map(
@@ -419,35 +400,6 @@ export default function Home() {
                   userCanEdit={!!user}
                 />
               )
-          )}
-        </>
-      )}
-
-      {/* ===== RECOMENDADO PARA TI ===== */}
-      {activeChip === "reco" && (
-        <>
-          {user ? (
-            personalizedShelves.length ? (
-              personalizedShelves.map((shelf, idx) => (
-                <Shelf
-                  key={idx}
-                  title={shelf.title}
-                  items={shelf.items}
-                  watchlistIds={watchlistIds}
-                  onToggleWatchlist={handleToggleWatchlist}
-                  userCanEdit={!!user}
-                />
-              ))
-            ) : (
-              <p className="home-shelves__empty">
-                Empieza a añadir películas a tu watchlist para recibir
-                recomendaciones personalizadas.
-              </p>
-            )
-          ) : (
-            <p className="home-shelves__empty">
-              Inicia sesión para ver recomendaciones hechas para ti.
-            </p>
           )}
         </>
       )}

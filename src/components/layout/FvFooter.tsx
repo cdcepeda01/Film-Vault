@@ -85,8 +85,8 @@ export default function FvFooter() {
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
               <p>
                 Film Vault es un proyecto personal creado con fines educativos y
-                de entretenimiento. No se garantiza disponibilidad continua del
-                servicio ni la conservación indefinida de tus datos.
+                de entretenimiento para las materias de Taller de Diseño Multimedia 
+                y Usablidad. No se garantiza disponibilidad continua del servicio ni la conservación indefinida de tus datos.
               </p>
               <p>
                 No alojamos ni reproducimos contenido audiovisual. La
@@ -100,9 +100,8 @@ export default function FvFooter() {
                 comentarios, y respetar los derechos de autor de terceros.
               </p>
               <p className="text-xs text-gray-400">
-                Estos términos pueden actualizarse en cualquier momento. El uso
-                continuado de la aplicación implica la aceptación de las
-                versiones más recientes.
+                Proyecto realizado por Cristian Cepeda, Juliana Preciado, Sergio Vivas,
+                Karol Bolívar, Juan Bello y Javier Saavedra. 
               </p>
             </div>
 
@@ -148,12 +147,12 @@ export default function FvFooter() {
                 comparten con terceros con fines comerciales.
               </p>
               <p>
-                Puedes solicitar eliminar tu información borrando tu cuenta o
-                contactando al desarrollador del proyecto a través del
+                Puedes solicitar eliminar tu información contacta
+                al desarrollador del proyecto a través del
                 repositorio de GitHub.
               </p>
               <p className="text-xs text-gray-400">
-                Este proyecto puede utilizar servicios externos (como Firebase o
+                Este proyecto puede utilizar servicios externos (como Firebase, Firestore y
                 TMDB) que tienen sus propias políticas de privacidad. Te
                 recomendamos revisarlas por separado.
               </p>

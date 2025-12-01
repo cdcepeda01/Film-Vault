@@ -121,7 +121,6 @@
   }
 
   /* ===== RESEÑA / CALIFICAR ===== */
-L 
   .movie-modal {
     @apply w-full max-w-2xl bg-black
            border border-red-800

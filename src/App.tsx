@@ -1,3 +1,4 @@
+// src/App.tsx
 import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 
 import Landing from "./pages/Landing";
@@ -11,7 +12,7 @@ import Series from "./pages/Series";
 import Tv from "./pages/Tv";
 import { useAuth } from "./auth/useAuth";
 import Header from "./components/layout/Header";
-import { SiteFooter } from "./components/layout/SiteFooter";
+import { SiteFooter } from "./components/layout";
 
 function Layout() {
   const location = useLocation();
@@ -19,17 +20,19 @@ function Layout() {
   const isLanding = location.pathname === "/";
   const isExplore = location.pathname === "/explore";
 
+  // Páginas donde el contenido arranca “pegado” al header
   const isHeroPage = isLanding || isExplore;
 
   return (
     <div className="fv-app-bg min-h-screen flex flex-col">
       <Header />
 
-      <main className={`flex-1 ${isHeroPage ? "" : "pt-16"}`}>
+      <main className={`${isHeroPage ? "" : "pt-16"} flex-1`}>
         <Outlet />
       </main>
 
-      <SiteFooter />
+      {/* 👇 Usamos el footer global en todo menos en el landing */}
+      {!isLanding && <SiteFooter />}
     </div>
   );
 }
@@ -47,8 +50,9 @@ export default function App() {
         <Route path="explore" element={<Home />} />
         <Route path="movie/:id" element={<Movie />} />
 
-        {/* Series */}
+        {/* Series (listado + detalle) */}
         <Route path="series" element={<Series />} />
+        {/* Detalle de serie: aceptamos /tv/:id y /series/:id */}
         <Route path="tv/:id" element={<Tv />} />
         <Route path="series/:id" element={<Tv />} />
 
@@ -62,7 +66,7 @@ export default function App() {
           element={user ? <Navigate to="/explore" /> : <Signup />}
         />
 
-        {/* Rutas  */}
+        {/* Rutas protegidas */}
         <Route
           path="me"
           element={user ? <Profile /> : <Navigate to="/login" />}

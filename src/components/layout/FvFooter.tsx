@@ -84,8 +84,8 @@ export default function FvFooter() {
 
             <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
               <p>
-                Film Vault es un proyecto personal creado con fines educativos y
-                de entretenimiento para las materias de Taller de Diseño Multimedia 
+                Film Vault es un proyecto educativo, realizado para las materias
+                de Taller de Diseño Multimedia 
                 y Usablidad. No se garantiza disponibilidad continua del servicio ni la conservación indefinida de tus datos.
               </p>
               <p>
